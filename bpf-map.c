@@ -208,7 +208,7 @@ static char **parse_val(char **argv, const char *name, unsigned char *val,
 }
 
 static int parse_elem(char **argv, void *key, void *value,
-		      __u32 key_size, __u32 value_size)
+		      __u32 key_size, __u32 value_size, __u32 *flags)
 {
 	if (!*argv) {
 		if (!key && !value)
@@ -230,7 +230,8 @@ static int parse_elem(char **argv, void *key, void *value,
 		if (!argv)
 			return -1;
 
-		return parse_elem(argv,	NULL, value, key_size, value_size);
+		return parse_elem(argv,	NULL, value, key_size, value_size,
+				  flags);
 	} else if (is_prefix(*argv, "value")) {
 		if (!value) {
 			if (value_size)
@@ -244,7 +245,23 @@ static int parse_elem(char **argv, void *key, void *value,
 		if (!argv)
 			return -1;
 
-		return parse_elem(argv,	key, NULL, key_size, value_size);
+		return parse_elem(argv,	key, NULL, key_size, value_size, flags);
+	} else if (is_prefix(*argv, "any") || is_prefix(*argv, "noexist")||
+		   is_prefix(*argv, "exist")) {
+		if (!flags) {
+			err("flags specified multiple times: %s\n", *argv);
+			return -1;
+		}
+
+		if (is_prefix(*argv, "any"))
+			*flags = BPF_ANY;
+		else if (is_prefix(*argv, "noexist"))
+			*flags = BPF_NOEXIST;
+		else if (is_prefix(*argv, "exist"))
+			*flags = BPF_EXIST;
+
+		return parse_elem(argv + 1, key, value, key_size, value_size,
+				  NULL);
 	}
 
 	err("expected key or value, got: %s\n", *argv);
@@ -359,6 +376,7 @@ static int do_update(int argc, char **argv)
 	void *key, *value;
 	unsigned int id;
 	char *endptr;
+	__u32 flags;
 	int err;
 	int fd;
 
@@ -390,11 +408,12 @@ static int do_update(int argc, char **argv)
 		goto exit_free;
 	}
 
-	err = parse_elem(argv, key, value, info.key_size, info.value_size);
+	err = parse_elem(argv, key, value, info.key_size, info.value_size,
+			 &flags);
 	if (err)
 		goto exit_free;
 
-	err = bpf_map_update_elem(fd, key, value, BPF_ANY);
+	err = bpf_map_update_elem(fd, key, value, flags);
 	if (err) {
 		err("update failed: %s\n", strerror(errno));
 		goto exit_free;
@@ -446,7 +465,7 @@ static int do_lookup(int argc, char **argv)
 		goto exit_free;
 	}
 
-	err = parse_elem(argv, key, NULL, info.key_size, 0);
+	err = parse_elem(argv, key, NULL, info.key_size, 0, NULL);
 	if (err)
 		goto exit_free;
 
@@ -506,7 +525,7 @@ static int do_delete(int argc, char **argv)
 		goto exit_free;
 	}
 
-	err = parse_elem(argv, key, NULL, info.key_size, 0);
+	err = parse_elem(argv, key, NULL, info.key_size, 0, NULL);
 	if (err)
 		goto exit_free;
 
@@ -527,9 +546,12 @@ static int do_help(int argc, char **argv)
 		"Usage: %s %s show\n"
 		"       %s %s help\n"
 		"       %s %s dump   id MAP_ID\n"
-		"       %s %s update id MAP_ID key BYTES value BYTES\n"
+		"       %s %s update id MAP_ID key BYTES value BYTES [UPDATE_FLAGS]\n"
 		"       %s %s lookup id MAP_ID key BYTES\n"
-		"       %s %s delete id MAP_ID key BYTES\n",
+		"       %s %s delete id MAP_ID key BYTES\n"
+		"\n"
+		"       UPDATE_FLAGS := { any | exist | noexist }\n"
+		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
 
