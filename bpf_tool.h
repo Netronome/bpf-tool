@@ -46,6 +46,8 @@
 #define warn(msg...)	fprintf(stderr, "Warning: " msg)
 #define info(msg...)	fprintf(stderr, msg)
 
+#define ptr_to_u64(ptr)	((__u64)(unsigned long)(ptr))
+
 #define min(a, b)							\
 	({ typeof(a) _a = (a); typeof(b) _b = (b); _a > _b ? _b : _a; })
 #define max(a, b)							\

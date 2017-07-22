@@ -10,7 +10,11 @@ dumping and modification of the maps.
    10: hash  key:4B  value:8B  max_entries:2048  flags:0x0
 
 # bpf prog show
-   10: xdp  tag: 00:5a:3d:21:23:62:0c:8b  jited: 0/0B  xlated: 0/560B
+   10: xdp  tag: 00:5a:3d:21:23:62:0c:8b  jited: 0B  xlated: 560B
+
+# bpf prog dump xlated id 10 file /tmp/t
+# ls -l /tmp/t
+-rw------- 1 root root 560 Jul 22 01:42 /tmp/t
 
 # bpf map lookup id 10 key 0 1 2 3
 key:
@@ -117,3 +121,48 @@ index 1f5300e56b44..9e658ffe31de 100644
  
 ```
 
+We also need a version of get_info_by_fd which doesn't clear the info:
+
+```diff
+diff --git a/tools/lib/bpf/bpf.c b/tools/lib/bpf/bpf.c
+index 412a7c82995a..2703fa282b65 100644
+--- a/tools/lib/bpf/bpf.c
++++ b/tools/lib/bpf/bpf.c
+@@ -308,13 +308,12 @@ int bpf_map_get_fd_by_id(__u32 id)
+        return sys_bpf(BPF_MAP_GET_FD_BY_ID, &attr, sizeof(attr));
+ }
+ 
+-int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)
++int __bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)
+ {
+        union bpf_attr attr;
+        int err;
+ 
+        bzero(&attr, sizeof(attr));
+-       bzero(info, *info_len);
+        attr.info.bpf_fd = prog_fd;
+        attr.info.info_len = *info_len;
+        attr.info.info = ptr_to_u64(info);
+@@ -325,3 +324,10 @@ int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)
+ 
+        return err;
+ }
++
++int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)
++{
++       bzero(info, *info_len);
++
++       return __bpf_obj_get_info_by_fd(prog_fd, info, info_len);
++}
+diff --git a/tools/lib/bpf/bpf.h b/tools/lib/bpf/bpf.h
+index 418c86e69bcb..4742883bbc3f 100644
+--- a/tools/lib/bpf/bpf.h
++++ b/tools/lib/bpf/bpf.h
+@@ -59,5 +59,6 @@ int bpf_map_get_next_id(__u32 start_id, __u32 *next_id);
+ int bpf_prog_get_fd_by_id(__u32 id);
+ int bpf_map_get_fd_by_id(__u32 id);
+ int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len);
++int __bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len);
+ 
+ #endif
+```

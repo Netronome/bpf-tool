@@ -330,7 +330,7 @@ static int do_dump(int argc, char **argv)
 	key = malloc(info.key_size);
 	value = alloc_value(&info);
 	if (!key || !value) {
-		err("mem alloc failed");
+		err("mem alloc failed\n");
 		err = -1;
 		goto exit_free;
 	}

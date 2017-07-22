@@ -33,12 +33,15 @@
 
 /* Author: Jakub Kicinski <kubakici@wp.pl> */
 
-#include <libbpf/bpf.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <libbpf/bpf.h>
 
 #include "bpf_tool.h"
 
@@ -64,7 +67,7 @@ static int do_show(int argc, char **arg)
 	int err;
 
 	while (!(err = bpf_prog_get_next_id(id, &id))) {
-		struct bpf_prog_info info;
+		struct bpf_prog_info info = { 0 };
 		__u32 len = sizeof(info);
 		int fd;
 
@@ -93,9 +96,8 @@ static int do_show(int argc, char **arg)
 		printf("tag: ");
 		print_hex(info.tag, BPF_TAG_SIZE, ":");
 
-		printf("  jited: %llu/%uB  xlated: %llu/%uB  ",
-		       info.jited_prog_insns, info.jited_prog_len,
-		       info.xlated_prog_insns, info.xlated_prog_len);
+		printf("  jited: %uB  xlated: %uB  ",
+		       info.jited_prog_len, info.xlated_prog_len);
 
 		printf("\n");
 	}
@@ -103,15 +105,135 @@ static int do_show(int argc, char **arg)
 	return errno == ENOENT ? 0 : -1;
 }
 
+static int do_dump(int argc, char **argv)
+{
+	struct bpf_prog_info info = { 0 };
+	unsigned int buf_size, id;
+	__u32 len = sizeof(info);
+	__u32 *member_len;
+	__u64 *member_ptr;
+	char *endptr;
+	char *buf;
+	ssize_t n;
+	int err;
+	int fd;
+
+	if (is_prefix(*argv, "jited")) {
+		member_len = &info.jited_prog_len;
+		member_ptr = &info.jited_prog_insns;
+	} else if (is_prefix(*argv, "xlated")) {
+		member_len = &info.xlated_prog_len;
+		member_ptr = &info.xlated_prog_insns;
+	} else {
+		err("expected 'xlated' or 'jited', got: %s\n", *argv);
+		return -1;
+	}
+	argv++;
+
+	if (argc < 4)
+		usage();
+
+	if (!is_prefix(*argv, "id")) {
+		err("expected 'id' got %s\n", *argv);
+		return -1;
+	}
+	argv++;
+
+	id = strtoul(*argv, &endptr, 0);
+	if (*endptr) {
+		err("can't parse %s as ID\n", *argv);
+		return -1;
+	}
+	argv++;
+
+	if (!is_prefix(*argv, "file")) {
+		err("expected 'file' got %s\n", *argv);
+		return -1;
+	}
+	argv++;
+
+	fd = bpf_prog_get_fd_by_id(id);
+	if (fd < 1) {
+		err("can't get prog by id (%u): %s\n", id, strerror(errno));
+		return -1;
+	}
+
+	err = bpf_obj_get_info_by_fd(fd, &info, &len);
+	if (err) {
+		err("can't get prog info: %s\n", strerror(errno));
+		return -1;
+	}
+
+	if (!*member_len) {
+		info("no instructions returned\n");
+		close(fd);
+		return 0;
+	}
+
+	buf_size = *member_len;
+
+	buf = malloc(buf_size);
+	if (!buf) {
+		err("mem alloc failed\n");
+		close(fd);
+		return -1;
+	}
+
+	memset(&info, 0, sizeof(info));
+
+	*member_ptr = ptr_to_u64(buf);
+	*member_len = buf_size;
+
+	err = __bpf_obj_get_info_by_fd(fd, &info, &len);
+	close(fd);
+	if (err) {
+		err("can't get prog info: %s\n", strerror(errno));
+		goto err_free;
+	}
+
+	if (*member_len > buf_size) {
+		info("too many instructions returned\n");
+		goto err_free;
+	}
+
+	fd = open(*argv, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+	if (fd < 1) {
+		err("can't open file %s: %s\n", *argv, strerror(errno));
+		goto err_free;
+	}
+
+	n = write(fd, buf, *member_len);
+	close(fd);
+	if (n != *member_len) {
+		err("error writing output file: %s\n",
+		    n < 0 ? strerror(errno) : "short write");
+		goto err_free;
+	}
+
+	free(buf);
+
+	return 0;
+
+err_free:
+	free(buf);
+	return -1;
+}
+
 static int do_help(int argc, char **argv)
 {
-	fprintf(stderr, "Usage: %s %s show\n", bin_name, argv[-2]);
+	fprintf(stderr,
+		"Usage: %s %s show\n"
+		"       %s %s dump xlated id PROG_ID file FILE\n"
+		"       %s %s dump jited  id PROG_ID file FILE\n"
+		"",
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
 
 	return 0;
 }
 
 static const struct cmd cmds[] = {
 	{ "show",	do_show },
+	{ "dump",	do_dump },
 	{ 0 }
 };
 
