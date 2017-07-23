@@ -566,6 +566,11 @@ exit_free:
 	return err;
 }
 
+static int do_pin(int argc, char **argv)
+{
+	return do_pin_any(argc, argv, bpf_map_get_fd_by_id);
+}
+
 static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
@@ -575,13 +580,14 @@ static int do_help(int argc, char **argv)
 		"       %s %s update id MAP_ID key BYTES value BYTES [UPDATE_FLAGS]\n"
 		"       %s %s lookup id MAP_ID key BYTES\n"
 		"       %s %s delete id MAP_ID key BYTES\n"
+		"       %s %s pin    id MAP_ID FILE\n"
 		"       %s %s help\n"
 		"\n"
 		"       UPDATE_FLAGS := { any | exist | noexist }\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2]);
 
 	return 0;
 }
@@ -593,6 +599,7 @@ static const struct cmd cmds[] = {
 	{ "update",	do_update },
 	{ "lookup",	do_lookup },
 	{ "delete",	do_delete },
+	{ "pin",	do_pin },
 	{ 0 }
 };
 

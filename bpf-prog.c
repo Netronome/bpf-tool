@@ -274,6 +274,11 @@ err_free:
 	return -1;
 }
 
+static int do_pin(int argc, char **argv)
+{
+	return do_pin_any(argc, argv, bpf_prog_get_fd_by_id);
+}
+
 static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
@@ -282,10 +287,12 @@ static int do_help(int argc, char **argv)
 		"       %s %s show tag PROG_TAG\n"
 		"       %s %s dump xlated id PROG_ID file FILE\n"
 		"       %s %s dump jited  id PROG_ID file FILE\n"
+		"       %s %s pin id PROG_ID FILE\n"
 		"       %s %s help\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
+		bin_name, argv[-2]);
 
 	return 0;
 }
@@ -293,6 +300,7 @@ static int do_help(int argc, char **argv)
 static const struct cmd cmds[] = {
 	{ "show",	do_show },
 	{ "dump",	do_dump },
+	{ "pin",	do_pin },
 	{ 0 }
 };
 

@@ -33,49 +33,56 @@
 
 /* Author: Jakub Kicinski <kubakici@wp.pl> */
 
-#ifndef __BPF_TOOL_H
-#define __BPF_TOOL_H
-
+#include <errno.h>
+#include <libgen.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <linux/bpf.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <libbpf/bpf.h>
 
-#define ARRAY_SIZE(a)	(sizeof(a) / sizeof(a[0]))
+#include "bpf_tool.h"
 
-#define err(msg...)	fprintf(stderr, "Error: " msg)
-#define warn(msg...)	fprintf(stderr, "Warning: " msg)
-#define info(msg...)	fprintf(stderr, msg)
+int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
+{
+	unsigned int id;
+	char *endptr;
+	int err;
+	int fd;
 
-#define ptr_to_u64(ptr)	((__u64)(unsigned long)(ptr))
+	if (!is_prefix(*argv, "id")) {
+		err("expected 'id' got %s\n", *argv);
+		return -1;
+	}
+	NEXT_ARG();
 
-#define min(a, b)							\
-	({ typeof(a) _a = (a); typeof(b) _b = (b); _a > _b ? _b : _a; })
-#define max(a, b)							\
-	({ typeof(a) _a = (a); typeof(b) _b = (b); _a < _b ? _b : _a; })
+	id = strtoul(*argv, &endptr, 0);
+	if (*endptr) {
+		err("can't parse %s as ID\n", *argv);
+		return -1;
+	}
+	NEXT_ARG();
 
-#define NEXT_ARG()	({ argc--; argv++; })
-#define BAD_ARG()	({ err("what is '%s'?\n", *argv); -1; })
+	if (argc != 1)
+		usage();
 
-#define BPF_TAG_FMT	"%02hhx:%02hhx:%02hhx:%02hhx:"	\
-			"%02hhx:%02hhx:%02hhx:%02hhx"
+	fd = get_fd_by_id(id);
+	if (fd < 1) {
+		err("can't get prog by id (%u): %s\n", id, strerror(errno));
+		return -1;
+	}
 
-extern const char *bin_name;
+	err = bpf_obj_pin(fd, *argv);
+	close(fd);
+	if (err) {
+		err("can't pin the object (%s): %s\n", *argv, strerror(errno));
+		if (errno == EPERM)
+			err("is %s in BPF file system?\n", dirname(*argv));
+		if (errno == ENOENT)
+			err("is BPF file system mounted?\n");
+		return -1;
+	}
 
-bool is_prefix(const char *pfx, const char *str);
-void print_hex(void *arg, unsigned int n, const char *sep);
-void usage(void) __attribute__((noreturn));
-
-struct cmd {
-	const char *cmd;
-	int (*func)(int argc, char **argv);
-};
-
-int cmd_select(const struct cmd *cmds, int argc, char **argv,
-	       int (*help)(int argc, char **argv));
-
-int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32));
-
-int do_prog(int argc, char **arg);
-int do_map(int argc, char **arg);
-
-#endif
+	return 0;
+}

@@ -40,7 +40,7 @@ include $(wildcard *.d)
 
 all: bpf
 
-bpf: bpf.o bpf-map.o bpf-prog.o
+bpf: bpf.o bpf-map.o bpf-prog.o bpf-common.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 clean:
