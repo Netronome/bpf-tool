@@ -268,32 +268,56 @@ static int parse_elem(char **argv, void *key, void *value,
 	return -1;
 }
 
-static int do_show(int argc, char **arg)
+static int show_map_by_id(unsigned int id)
+{
+	struct bpf_map_info info;
+	__u32 len = sizeof(info);
+	int fd;
+
+	fd = map_get_fd_and_info(id, &info, &len);
+	if (fd < 0)
+		return -1;
+
+	close(fd);
+
+	printf("   %u: ", id);
+	if (info.type < ARRAY_SIZE(map_type_name))
+		printf("%s  ", map_type_name[info.type]);
+	else
+		printf("type:%u  ", info.type);
+
+	printf("key:%uB  value:%uB  max_entries:%u  flags:0x%x\n",
+	       info.key_size, info.value_size, info.max_entries,
+	       info.map_flags);
+
+	return 0;
+}
+
+static int do_show(int argc, char **argv)
 {
 	__u32 id = 0;
 	int err;
 
-	while (!(err = bpf_map_get_next_id(id, &id))) {
-		struct bpf_map_info info;
-		__u32 len = sizeof(info);
-		int fd;
+	if (argc == 2 && is_prefix(*argv, "id")) {
+		char *endptr;
 
-		fd = map_get_fd_and_info(id, &info, &len);
-		if (fd < 0)
+		NEXT_ARG();
+
+		id = strtoul(*argv, &endptr, 0);
+		if (*endptr) {
+			err("can't parse %s as ID\n", *argv);
 			return -1;
+		}
+		NEXT_ARG();
 
-		close(fd);
-
-		printf("   %u: ", id);
-		if (info.type < ARRAY_SIZE(map_type_name))
-			printf("%s  ", map_type_name[info.type]);
-		else
-			printf("type:%u  ", info.type);
-
-		printf("key:%uB  value:%uB  max_entries:%u  flags:0x%x\n",
-		       info.key_size, info.value_size, info.max_entries,
-		       info.map_flags);
+		return show_map_by_id(id);
 	}
+
+	if (argc)
+		return BAD_ARG();
+
+	while (!(err = bpf_map_get_next_id(id, &id)))
+		show_map_by_id(id);
 
 	return errno == ENOENT ? 0 : -1;
 }
@@ -546,16 +570,18 @@ static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
 		"Usage: %s %s show\n"
-		"       %s %s help\n"
+		"       %s %s show   id MAP_ID\n"
 		"       %s %s dump   id MAP_ID\n"
 		"       %s %s update id MAP_ID key BYTES value BYTES [UPDATE_FLAGS]\n"
 		"       %s %s lookup id MAP_ID key BYTES\n"
 		"       %s %s delete id MAP_ID key BYTES\n"
+		"       %s %s help\n"
 		"\n"
 		"       UPDATE_FLAGS := { any | exist | noexist }\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
+		bin_name, argv[-2]);
 
 	return 0;
 }
