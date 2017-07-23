@@ -53,6 +53,9 @@
 #define max(a, b)							\
 	({ typeof(a) _a = (a); typeof(b) _b = (b); _a < _b ? _b : _a; })
 
+#define NEXT_ARG()	({ argc--; argv++; })
+#define BAD_ARG()	({ err("what is '%s'?\n", *argv); -1; })
+
 extern const char *bin_name;
 
 bool is_prefix(const char *pfx, const char *str);

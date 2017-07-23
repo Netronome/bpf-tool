@@ -61,10 +61,13 @@ static const char *prog_type_name[] = {
 	[BPF_PROG_TYPE_LWT_XMIT]	= "lwt_xmit",
 };
 
-static int do_show(int argc, char **arg)
+static int do_show(int argc, char **argv)
 {
 	__u32 id = 0;
 	int err;
+
+	if (argc)
+		return BAD_ARG();
 
 	while (!(err = bpf_prog_get_next_id(id, &id))) {
 		struct bpf_prog_info info = { 0 };
@@ -128,29 +131,29 @@ static int do_dump(int argc, char **argv)
 		err("expected 'xlated' or 'jited', got: %s\n", *argv);
 		return -1;
 	}
-	argv++;
+	NEXT_ARG();
 
-	if (argc < 4)
+	if (argc != 4)
 		usage();
 
 	if (!is_prefix(*argv, "id")) {
 		err("expected 'id' got %s\n", *argv);
 		return -1;
 	}
-	argv++;
+	NEXT_ARG();
 
 	id = strtoul(*argv, &endptr, 0);
 	if (*endptr) {
 		err("can't parse %s as ID\n", *argv);
 		return -1;
 	}
-	argv++;
+	NEXT_ARG();
 
 	if (!is_prefix(*argv, "file")) {
 		err("expected 'file' got %s\n", *argv);
 		return -1;
 	}
-	argv++;
+	NEXT_ARG();
 
 	fd = bpf_prog_get_fd_by_id(id);
 	if (fd < 1) {

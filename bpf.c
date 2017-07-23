@@ -71,7 +71,7 @@ int cmd_select(const struct cmd *cmds, int argc, char **argv,
 	unsigned int i;
 
 	if (argc < 1 && cmds[0].func)
-		return cmds[0].func(argc - 1, argv + 1);
+		return cmds[0].func(argc, argv);
 
 	for (i = 0; cmds[i].func; i++)
 		if (is_prefix(*argv, cmds[i].cmd))
@@ -121,9 +121,7 @@ static const struct cmd cmds[] = {
 int main(int argc, char **argv)
 {
 	bin_name = argv[0];
-
-	argc--;
-	argv++;
+	NEXT_ARG();
 
 	return cmd_select(cmds, argc, argv, do_help);
 }

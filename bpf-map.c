@@ -309,19 +309,21 @@ static int do_dump(int argc, char **argv)
 	int err;
 	int fd;
 
-	if (!argv[0] || !argv[1])
+	if (argc != 2)
 		usage();
 
-	if (!is_prefix(argv[0], "id")) {
-		err("expected 'id' got %s\n", argv[0]);
+	if (!is_prefix(*argv, "id")) {
+		err("expected 'id' got %s\n", *argv);
 		return -1;
 	}
+	NEXT_ARG();
 
-	id = strtoul(argv[1], &endptr, 0);
+	id = strtoul(*argv, &endptr, 0);
 	if (*endptr) {
-		err("can't parse %s as ID\n", argv[1]);
+		err("can't parse %s as ID\n", *argv);
 		return -1;
 	}
+	NEXT_ARG();
 
 	fd = map_get_fd_and_info(id, &info, &len);
 	if (fd < 0)
@@ -380,21 +382,21 @@ static int do_update(int argc, char **argv)
 	int err;
 	int fd;
 
-	if (!argv[0] || !argv[1])
+	if (argc < 2)
 		usage();
 
-	if (!is_prefix(argv[0], "id")) {
-		err("expected 'id' got %s\n", argv[0]);
+	if (!is_prefix(*argv, "id")) {
+		err("expected 'id' got %s\n", *argv);
 		return -1;
 	}
+	NEXT_ARG();
 
-	id = strtoul(argv[1], &endptr, 0);
+	id = strtoul(*argv, &endptr, 0);
 	if (*endptr) {
-		err("can't parse %s as ID\n", argv[1]);
+		err("can't parse %s as ID\n", *argv);
 		return -1;
 	}
-
-	argv += 2;
+	NEXT_ARG();
 
 	fd = map_get_fd_and_info(id, &info, &len);
 	if (fd < 0)
@@ -437,21 +439,21 @@ static int do_lookup(int argc, char **argv)
 	int err;
 	int fd;
 
-	if (!argv[0] || !argv[1])
+	if (argc < 2)
 		usage();
 
-	if (!is_prefix(argv[0], "id")) {
-		err("expected 'id' got %s\n", argv[0]);
+	if (!is_prefix(*argv, "id")) {
+		err("expected 'id' got %s\n", *argv);
 		return -1;
 	}
+	NEXT_ARG();
 
-	id = strtoul(argv[1], &endptr, 0);
+	id = strtoul(*argv, &endptr, 0);
 	if (*endptr) {
-		err("can't parse %s as ID\n", argv[1]);
+		err("can't parse %s as ID\n", *argv);
 		return -1;
 	}
-
-	argv += 2;
+	NEXT_ARG();
 
 	fd = map_get_fd_and_info(id, &info, &len);
 	if (fd < 0)
@@ -498,21 +500,21 @@ static int do_delete(int argc, char **argv)
 	int err;
 	int fd;
 
-	if (!argv[0] || !argv[1])
+	if (argc < 2)
 		usage();
 
-	if (!is_prefix(argv[0], "id")) {
-		err("expected 'id' got %s\n", argv[0]);
+	if (!is_prefix(*argv, "id")) {
+		err("expected 'id' got %s\n", *argv);
 		return -1;
 	}
+	NEXT_ARG();
 
-	id = strtoul(argv[1], &endptr, 0);
+	id = strtoul(*argv, &endptr, 0);
 	if (*endptr) {
-		err("can't parse %s as ID\n", argv[1]);
+		err("can't parse %s as ID\n", *argv);
 		return -1;
 	}
-
-	argv += 2;
+	NEXT_ARG();
 
 	fd = map_get_fd_and_info(id, &info, &len);
 	if (fd < 0)
