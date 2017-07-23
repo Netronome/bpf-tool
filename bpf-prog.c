@@ -282,9 +282,10 @@ static int do_help(int argc, char **argv)
 		"       %s %s show tag PROG_TAG\n"
 		"       %s %s dump xlated id PROG_ID file FILE\n"
 		"       %s %s dump jited  id PROG_ID file FILE\n"
+		"       %s %s help\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
 
 	return 0;
 }
