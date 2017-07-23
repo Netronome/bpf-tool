@@ -61,51 +61,103 @@ static const char *prog_type_name[] = {
 	[BPF_PROG_TYPE_LWT_XMIT]	= "lwt_xmit",
 };
 
+static int show_prog_by_id(unsigned int id, unsigned char *tag)
+{
+	struct bpf_prog_info info = { 0 };
+	__u32 len = sizeof(info);
+	int err;
+	int fd;
+
+	fd = bpf_prog_get_fd_by_id(id);
+	if (fd < 1) {
+		err("can't get prog by id (%u): %s\n", id, strerror(errno));
+		return -1;
+	}
+
+	err = bpf_obj_get_info_by_fd(fd, &info, &len);
+	close(fd);
+
+	if (err) {
+		err("can't get prog info: %s\n", strerror(errno));
+		return -1;
+	}
+
+	if (tag && memcmp(info.tag, tag, BPF_TAG_SIZE))
+		return 0;
+
+	printf("   %u: ", id);
+	if (info.type < ARRAY_SIZE(prog_type_name))
+		printf("%s  ", prog_type_name[info.type]);
+	else
+		printf("type:%u  ", info.type);
+
+	printf("tag: ");
+	print_hex(info.tag, BPF_TAG_SIZE, ":");
+
+	printf("  jited: %uB  xlated: %uB  ",
+	       info.jited_prog_len, info.xlated_prog_len);
+
+	printf("\n");
+
+	return 0;
+}
+
 static int do_show(int argc, char **argv)
 {
+	unsigned char tag[BPF_TAG_SIZE];
+	bool have_tag = false;
 	__u32 id = 0;
 	int err;
+
+	if (argc == 2) {
+		if (is_prefix(*argv, "id")) {
+			char *endptr;
+
+			NEXT_ARG();
+
+			id = strtoul(*argv, &endptr, 0);
+			if (*endptr) {
+				err("can't parse %s as ID\n", *argv);
+				return -1;
+			}
+
+			return show_prog_by_id(id, NULL);
+		} else if (is_prefix(*argv, "tag")) {
+			NEXT_ARG();
+
+			if (sscanf(*argv, BPF_TAG_FMT, tag, tag + 1, tag + 2,
+				   tag + 3, tag + 4, tag + 5, tag + 6, tag + 7)
+			    != BPF_TAG_SIZE) {
+				err("can't parse tag\n");
+				return -1;
+			}
+			have_tag = true;
+		} else {
+			err("what is '%s'?\n", *argv);
+			return -1;
+		}
+
+		NEXT_ARG();
+	}
 
 	if (argc)
 		return BAD_ARG();
 
-	while (!(err = bpf_prog_get_next_id(id, &id))) {
-		struct bpf_prog_info info = { 0 };
-		__u32 len = sizeof(info);
-		int fd;
-
-		fd = bpf_prog_get_fd_by_id(id);
-		if (fd < 1) {
-			err("can't get prog by id (%u): %s\n",
-			    id, strerror(errno));
-			return -1;
-		}
-
-		err = bpf_obj_get_info_by_fd(fd, &info, &len);
-		close(fd);
-
+	while (true) {
+		err = bpf_prog_get_next_id(id, &id);
 		if (err) {
-			err("can't get prog info: %s\n",
-			    strerror(errno));
+			if (errno == ENOENT)
+				break;
+			err("can't get next prog: %s\n", strerror(errno));
 			return -1;
 		}
 
-		printf("   %u: ", id);
-		if (info.type < ARRAY_SIZE(prog_type_name))
-			printf("%s  ", prog_type_name[info.type]);
-		else
-			printf("type:%u  ", info.type);
-
-		printf("tag: ");
-		print_hex(info.tag, BPF_TAG_SIZE, ":");
-
-		printf("  jited: %uB  xlated: %uB  ",
-		       info.jited_prog_len, info.xlated_prog_len);
-
-		printf("\n");
+		err = show_prog_by_id(id, have_tag ? tag : NULL);
+		if (err)
+			return err;
 	}
 
-	return errno == ENOENT ? 0 : -1;
+	return 0;
 }
 
 static int do_dump(int argc, char **argv)
@@ -226,10 +278,13 @@ static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
 		"Usage: %s %s show\n"
+		"       %s %s show id PROG_ID\n"
+		"       %s %s show tag PROG_TAG\n"
 		"       %s %s dump xlated id PROG_ID file FILE\n"
 		"       %s %s dump jited  id PROG_ID file FILE\n"
 		"",
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
+		bin_name, argv[-2], bin_name, argv[-2]);
 
 	return 0;
 }

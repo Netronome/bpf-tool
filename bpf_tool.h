@@ -56,6 +56,9 @@
 #define NEXT_ARG()	({ argc--; argv++; })
 #define BAD_ARG()	({ err("what is '%s'?\n", *argv); -1; })
 
+#define BPF_TAG_FMT	"%02hhx:%02hhx:%02hhx:%02hhx:"	\
+			"%02hhx:%02hhx:%02hhx:%02hhx"
+
 extern const char *bin_name;
 
 bool is_prefix(const char *pfx, const char *str);
