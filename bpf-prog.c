@@ -143,14 +143,17 @@ static int prog_parse_fd(int *argc, char ***argv)
 		NEXT_ARGP();
 
 		fd = bpf_obj_get(path);
-		if (fd < 1)
+		if (fd < 1) {
 			err("bpf obj get (%s): %s\n", path, strerror(errno));
+			return -1;
+		}
 
-		type = guess_fd_type(fd);
+		type = get_fd_type(fd);
 		if (type < 0)
 			return type;
 		if (type != BPF_OBJ_PROG) {
-			err("incorrect info size: is this object a map?\n");
+			err("incorrect object type: %s\n",
+			    get_fd_type_name(type));
 			return -1;
 		}
 

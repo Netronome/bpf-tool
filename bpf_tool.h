@@ -80,7 +80,8 @@ struct cmd {
 int cmd_select(const struct cmd *cmds, int argc, char **argv,
 	       int (*help)(int argc, char **argv));
 
-int guess_fd_type(int fd);
+int get_fd_type(int fd);
+const char *get_fd_type_name(int type);
 int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32));
 
 int do_prog(int argc, char **arg);

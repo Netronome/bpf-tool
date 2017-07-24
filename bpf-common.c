@@ -41,6 +41,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <libbpf/bpf.h>
+#include <linux/limits.h>
+#include <sys/types.h>
 
 #include "bpf_tool.h"
 
@@ -87,26 +89,40 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 	return 0;
 }
 
-/* There seem to be no way today of telling whether pinned object is a map or
- * a program.  We work around this by checking if size of info has expected
- * size.  Note: this is likely to break in the future as info struct is
- * extended!
- */
-int guess_fd_type(int fd)
+const char *get_fd_type_name(int type)
 {
-	unsigned char buf[sizeof(struct bpf_map_info) +
-			  sizeof(struct bpf_prog_info)];
-	__u32 len = sizeof(buf);
-	int err;
+	const char *names[] = {
+		[BPF_OBJ_PROG]	= "program",
+		[BPF_OBJ_MAP]	= "map",
+	};
 
-	err = bpf_obj_get_info_by_fd(fd, buf, &len);
-	if (err) {
-		err("can't get object info: %s\n", strerror(errno));
+	if (type > 0 && type < (int)ARRAY_SIZE(names) && names[type])
+		return names[type];
+
+	return "unknown";
+}
+
+int get_fd_type(int fd)
+{
+	char path[PATH_MAX];
+	char buf[512];
+	ssize_t n;
+
+	snprintf(path, sizeof(path), "/proc/%d/fd/%d", getpid(), fd);
+
+	n = readlink(path, buf, sizeof(buf));
+	if (n < 0) {
+		err("can't read link type: %s\n", strerror(errno));
 		return -1;
 	}
-	if (len == sizeof(struct bpf_map_info))
+	if (n == sizeof(path)) {
+		err("can't read link type: path too long!\n");
+		return -1;
+	}
+
+	if (strstr(buf, "bpf-map"))
 		return BPF_OBJ_MAP;
-	else if (len == sizeof(struct bpf_prog_info))
+	else if (strstr(buf, "bpf-prog"))
 		return BPF_OBJ_PROG;
 
 	return BPF_OBJ_UNKNOWN;
