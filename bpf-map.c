@@ -219,6 +219,13 @@ static void print_entry(struct bpf_map_info *info, unsigned char *key,
 			print_hex(value, info->value_size, " ");
 			return;
 		}
+
+		printf("key: ");
+		print_hex(key, info->key_size, " ");
+		printf("\nvalue: ");
+		print_hex(value, info->value_size, " ");
+		printf("\n");
+
 		return;
 	}
 
