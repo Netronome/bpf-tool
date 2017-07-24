@@ -124,6 +124,17 @@ static bool map_is_per_cpu(__u32 type)
 	       type == BPF_MAP_TYPE_LRU_PERCPU_HASH;
 }
 
+static bool map_is_map_of_maps(__u32 type)
+{
+	return type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
+	       type == BPF_MAP_TYPE_HASH_OF_MAPS;
+}
+
+static bool map_is_map_of_progs(__u32 type)
+{
+	return type == BPF_MAP_TYPE_PROG_ARRAY;
+}
+
 static void *alloc_value(struct bpf_map_info *info)
 {
 	if (map_is_per_cpu(info->type))
@@ -136,7 +147,7 @@ static int map_parse_fd(int *argc, char ***argv)
 {
 	int fd;
 
-	if (is_prefix(**argv, "id")) {
+	if (is_prefix(**argv, "id") || is_prefix(**argv, "mapid")) {
 		unsigned int id;
 		char *endptr;
 
@@ -265,8 +276,9 @@ static char **parse_val(char **argv, const char *name, unsigned char *val,
 	return argv + i;
 }
 
-static int parse_elem(char **argv, void *key, void *value,
-		      __u32 key_size, __u32 value_size, __u32 *flags)
+static int parse_elem(char **argv, struct bpf_map_info *info,
+		      void *key, void *value, __u32 key_size, __u32 value_size,
+		      __u32 *flags)
 {
 	if (!*argv) {
 		if (!key && !value)
@@ -288,9 +300,12 @@ static int parse_elem(char **argv, void *key, void *value,
 		if (!argv)
 			return -1;
 
-		return parse_elem(argv,	NULL, value, key_size, value_size,
+		return parse_elem(argv, info, NULL, value, key_size, value_size,
 				  flags);
 	} else if (is_prefix(*argv, "value")) {
+		int argc = 0; /* no need to pass it in */
+		int fd;
+
 		if (!value) {
 			if (value_size)
 				err("duplicate value\n");
@@ -299,11 +314,40 @@ static int parse_elem(char **argv, void *key, void *value,
 			return -1;
 		}
 
-		argv = parse_val(argv + 1, "value", value, value_size);
-		if (!argv)
-			return -1;
+		NEXT_ARG();
 
-		return parse_elem(argv,	key, NULL, key_size, value_size, flags);
+		if (map_is_map_of_maps(info->type)) {
+			if (value_size != 4) {
+				err("value smaller than 4B for map in map?\n");
+				return -1;
+			}
+
+			fd = map_parse_fd(&argc, &argv);
+			if (fd < 1)
+				return -1;
+
+			*(__u32 *)value = fd;
+			/* We will leak this fd, oh well... */
+		} else if (map_is_map_of_progs(info->type)) {
+			if (value_size != 4) {
+				err("value smaller than 4B for map of progs?\n");
+				return -1;
+			}
+
+			fd = prog_parse_fd(&argc, &argv);
+			if (fd < 1)
+				return -1;
+
+			*(__u32 *)value = fd;
+			/* We will leak this fd, oh well... */
+		} else {
+			argv = parse_val(argv, "value", value, value_size);
+			if (!argv)
+				return -1;
+		}
+
+		return parse_elem(argv, info, key, NULL, key_size, value_size,
+				  flags);
 	} else if (is_prefix(*argv, "any") || is_prefix(*argv, "noexist")||
 		   is_prefix(*argv, "exist")) {
 		if (!flags) {
@@ -318,8 +362,8 @@ static int parse_elem(char **argv, void *key, void *value,
 		else if (is_prefix(*argv, "exist"))
 			*flags = BPF_EXIST;
 
-		return parse_elem(argv + 1, key, value, key_size, value_size,
-				  NULL);
+		return parse_elem(argv + 1, info, key, value, key_size,
+				  value_size, NULL);
 	}
 
 	err("expected key or value, got: %s\n", *argv);
@@ -407,6 +451,11 @@ static int do_dump(int argc, char **argv)
 	if (fd < 0)
 		return -1;
 
+	if (map_is_map_of_maps(info.type) || map_is_map_of_progs(info.type)) {
+		err("Dumping maps of maps and program maps not supported\n");
+		return -1;
+	}
+
 	key = malloc(info.key_size);
 	value = alloc_value(&info);
 	if (!key || !value) {
@@ -429,12 +478,13 @@ static int do_dump(int argc, char **argv)
 			info("can't lookup element with key: ");
 			print_hex(key, info.key_size, " ");
 			printf("\n");
-			continue;
+			goto next_key;
 		}
 
 		print_entry(&info, key, value);
 		printf("\n");
 
+next_key:
 		prev_key = key;
 		num_elems++;
 	}
@@ -473,8 +523,8 @@ static int do_update(int argc, char **argv)
 		goto exit_free;
 	}
 
-	err = parse_elem(argv, key, value, info.key_size, info.value_size,
-			 &flags);
+	err = parse_elem(argv, &info, key, value, info.key_size,
+			 info.value_size, &flags);
 	if (err)
 		goto exit_free;
 
@@ -515,7 +565,7 @@ static int do_lookup(int argc, char **argv)
 		goto exit_free;
 	}
 
-	err = parse_elem(argv, key, NULL, info.key_size, 0, NULL);
+	err = parse_elem(argv, &info, key, NULL, info.key_size, 0, NULL);
 	if (err)
 		goto exit_free;
 
@@ -562,7 +612,8 @@ static int do_getnext(int argc, char **argv)
 	}
 
 	if (argc) {
-		err = parse_elem(argv, key, NULL, info.key_size, 0, NULL);
+		err = parse_elem(argv, &info, key, NULL, info.key_size, 0,
+				 NULL);
 		if (err)
 			goto exit_free;
 	} else {
@@ -618,7 +669,7 @@ static int do_delete(int argc, char **argv)
 		goto exit_free;
 	}
 
-	err = parse_elem(argv, key, NULL, info.key_size, 0, NULL);
+	err = parse_elem(argv, &info, key, NULL, info.key_size, 0, NULL);
 	if (err)
 		goto exit_free;
 
@@ -643,14 +694,16 @@ static int do_help(int argc, char **argv)
 	fprintf(stderr,
 		"Usage: %s %s show   [MAP]\n"
 		"       %s %s dump    MAP\n"
-		"       %s %s update  MAP  key BYTES value BYTES [UPDATE_FLAGS]\n"
+		"       %s %s update  MAP  key BYTES value VALUE [UPDATE_FLAGS]\n"
 		"       %s %s lookup  MAP  key BYTES\n"
 		"       %s %s getnext MAP [key BYTES]\n"
 		"       %s %s delete  MAP  key BYTES\n"
 		"       %s %s pin     MAP  FILE\n"
 		"       %s %s help\n"
 		"\n"
-		"       MAP := { id MAP_ID | pinned FILE }\n"
+		"       MAP := { id MAP_ID | mapid MAP_ID | pinned FILE }\n"
+		"       " HELP_SPEC_PROGRAM "\n"
+		"       VALUE := { BYTES | MAP | PROGRAM }\n"
 		"       UPDATE_FLAGS := { any | exist | noexist }\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],

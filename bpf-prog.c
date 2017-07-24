@@ -98,11 +98,11 @@ static int prog_fd_by_tag(unsigned char *tag)
 	}
 }
 
-static int prog_parse_fd(int *argc, char ***argv)
+int prog_parse_fd(int *argc, char ***argv)
 {
 	int fd;
 
-	if (is_prefix(**argv, "id")) {
+	if (is_prefix(**argv, "id") || is_prefix(**argv, "progid")) {
 		unsigned int id;
 		char *endptr;
 
@@ -348,7 +348,7 @@ static int do_help(int argc, char **argv)
 		"       %s %s pin   PROGRAM FILE\n"
 		"       %s %s help\n"
 		"\n"
-		"       PROGRAM := { id PROG_ID | pinned FILE | tag PROG_TAG }\n"
+		"       " HELP_SPEC_PROGRAM "\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2]);

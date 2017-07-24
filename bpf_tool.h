@@ -60,6 +60,9 @@
 #define BPF_TAG_FMT	"%02hhx:%02hhx:%02hhx:%02hhx:"	\
 			"%02hhx:%02hhx:%02hhx:%02hhx"
 
+#define HELP_SPEC_PROGRAM						\
+	"PROGRAM := { id PROG_ID | progid PROG_ID | pinned FILE | tag PROG_TAG }"
+
 enum bpf_obj_type {
 	BPF_OBJ_UNKNOWN,
 	BPF_OBJ_PROG,
@@ -86,5 +89,7 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32));
 
 int do_prog(int argc, char **arg);
 int do_map(int argc, char **arg);
+
+int prog_parse_fd(int *argc, char ***argv);
 
 #endif

@@ -10,25 +10,26 @@ Usage: bpftool OBJECT { COMMAND | help }
 # bpftool map help
 Usage: bpftool map show   [MAP]
        bpftool map dump    MAP
-       bpftool map update  MAP  key BYTES value BYTES [UPDATE_FLAGS]
+       bpftool map update  MAP  key BYTES value VALUE [UPDATE_FLAGS]
        bpftool map lookup  MAP  key BYTES
        bpftool map getnext MAP [key BYTES]
        bpftool map delete  MAP  key BYTES
        bpftool map pin     MAP  FILE
        bpftool map help
 
-       MAP := { id MAP_ID | pinned FILE }
+       MAP := { id MAP_ID | mapid MAP_ID | pinned FILE }
+       PROGRAM := { id PROG_ID | progid PROG_ID | pinned FILE | tag PROG_TAG }
+       VALUE := { BYTES | MAP | PROGRAM }
        UPDATE_FLAGS := { any | exist | noexist }
 
 # bpftool program help
-Usage: bpftool program show
-       bpftool program show [PROGRAM]
+Usage: bpftool program show [PROGRAM]
        bpftool program dump xlated PROGRAM file FILE
        bpftool program dump jited  PROGRAM file FILE
        bpftool program pin   PROGRAM FILE
        bpftool program help
 
-       PROGRAM := { id PROG_ID | pinned FILE | tag PROG_TAG }
+       PROGRAM := { id PROG_ID | progid PROG_ID | pinned FILE | tag PROG_TAG }
 ```
 
 ## Examples
