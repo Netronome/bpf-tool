@@ -1,5 +1,34 @@
 # BPF userspace tool
 
+## Supported operations
+
+```
+# bpf help
+Usage: bpf OBJECT { COMMAND | help }
+       OBJECT := { program | map }
+# bpf map help
+Usage: bpf map show
+       bpf map show   MAP
+       bpf map dump   MAP
+       bpf map update MAP key BYTES value BYTES [UPDATE_FLAGS]
+       bpf map lookup MAP key BYTES
+       bpf map delete MAP key BYTES
+       bpf map pin    MAP FILE
+       bpf map help
+
+       MAP := { id MAP_ID | pinned FILE }
+       UPDATE_FLAGS := { any | exist | noexist }
+# bpf program help
+Usage: bpf program show
+       bpf program show PROGRAM
+       bpf program dump xlated PROGRAM file FILE
+       bpf program dump jited  PROGRAM file FILE
+       bpf program pin PROGRAM FILE
+       bpf program help
+
+       PROGRAM := { id PROG_ID | pinned FILE | tag PROG_TAG }
+```
+
 ## Examples
 
 The tool allows listing programs and maps on the system as well as simple
