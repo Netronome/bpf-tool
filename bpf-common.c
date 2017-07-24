@@ -86,3 +86,28 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 
 	return 0;
 }
+
+/* There seem to be no way today of telling whether pinned object is a map or
+ * a program.  We work around this by checking if size of info has expected
+ * size.  Note: this is likely to break in the future as info struct is
+ * extended!
+ */
+int guess_fd_type(int fd)
+{
+	unsigned char buf[sizeof(struct bpf_map_info) +
+			  sizeof(struct bpf_prog_info)];
+	__u32 len = sizeof(buf);
+	int err;
+
+	err = bpf_obj_get_info_by_fd(fd, buf, &len);
+	if (err) {
+		err("can't get object info: %s\n", strerror(errno));
+		return -1;
+	}
+	if (len == sizeof(struct bpf_map_info))
+		return BPF_OBJ_MAP;
+	else if (len == sizeof(struct bpf_prog_info))
+		return BPF_OBJ_PROG;
+
+	return BPF_OBJ_UNKNOWN;
+}

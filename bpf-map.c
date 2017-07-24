@@ -132,16 +132,64 @@ static void *alloc_value(struct bpf_map_info *info)
 		return malloc(info->value_size);
 }
 
-static int map_get_fd_and_info(__u32 id, void *info, __u32 *info_len)
+static int map_parse_fd(int *argc, char ***argv)
+{
+	int fd;
+
+	if (is_prefix(**argv, "id")) {
+		unsigned int id;
+		char *endptr;
+
+		NEXT_ARGP();
+
+		id = strtoul(**argv, &endptr, 0);
+		if (*endptr) {
+			err("can't parse %s as ID\n", **argv);
+			return -1;
+		}
+		NEXT_ARGP();
+
+		fd = bpf_map_get_fd_by_id(id);
+		if (fd < 1)
+			err("get map by id (%u): %s\n", id, strerror(errno));
+		return fd;
+	} else if (is_prefix(**argv, "pinned")) {
+		char *path;
+		int type;
+
+		NEXT_ARGP();
+
+		path = **argv;
+		NEXT_ARGP();
+
+		fd = bpf_obj_get(path);
+		if (fd < 1)
+			err("bpf obj get (%s): %s\n", path, strerror(errno));
+
+		type = guess_fd_type(fd);
+		if (type < 0)
+			return type;
+		if (type != BPF_OBJ_MAP) {
+			err("incorrect info size: is this object a program?\n");
+			return -1;
+		}
+
+		return fd;
+	}
+
+	err("expected 'id' or 'pinned', got: '%s'?\n", **argv);
+	return -1;
+}
+
+static int
+map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
 {
 	int err;
 	int fd;
 
-	fd = bpf_map_get_fd_by_id(id);
-	if (fd < 1) {
-		err("can't get map by id (%u): %s\n", id, strerror(errno));
+	fd = map_parse_fd(argc, argv);
+	if (fd < 1)
 		return -1;
-	}
 
 	err = bpf_obj_get_info_by_fd(fd, info, info_len);
 	if (err) {
@@ -268,56 +316,57 @@ static int parse_elem(char **argv, void *key, void *value,
 	return -1;
 }
 
-static int show_map_by_id(unsigned int id)
+static int show_map(struct bpf_map_info *info)
 {
-	struct bpf_map_info info;
-	__u32 len = sizeof(info);
-	int fd;
-
-	fd = map_get_fd_and_info(id, &info, &len);
-	if (fd < 0)
-		return -1;
-
-	close(fd);
-
-	printf("   %u: ", id);
-	if (info.type < ARRAY_SIZE(map_type_name))
-		printf("%s  ", map_type_name[info.type]);
+	printf("   %u: ", info->id);
+	if (info->type < ARRAY_SIZE(map_type_name))
+		printf("%s  ", map_type_name[info->type]);
 	else
-		printf("type:%u  ", info.type);
+		printf("type:%u  ", info->type);
 
 	printf("key:%uB  value:%uB  max_entries:%u  flags:0x%x\n",
-	       info.key_size, info.value_size, info.max_entries,
-	       info.map_flags);
+	       info->key_size, info->value_size, info->max_entries,
+	       info->map_flags);
 
 	return 0;
 }
 
 static int do_show(int argc, char **argv)
 {
+	struct bpf_map_info info;
+	__u32 len = sizeof(info);
 	__u32 id = 0;
 	int err;
+	int fd;
 
-	if (argc == 2 && is_prefix(*argv, "id")) {
-		char *endptr;
-
-		NEXT_ARG();
-
-		id = strtoul(*argv, &endptr, 0);
-		if (*endptr) {
-			err("can't parse %s as ID\n", *argv);
+	if (argc == 2) {
+		fd = map_parse_fd_and_info(&argc, &argv, &info, &len);
+		if (fd < 0)
 			return -1;
-		}
-		NEXT_ARG();
 
-		return show_map_by_id(id);
+		return show_map(&info);
 	}
 
 	if (argc)
 		return BAD_ARG();
 
-	while (!(err = bpf_map_get_next_id(id, &id)))
-		show_map_by_id(id);
+	while (!(err = bpf_map_get_next_id(id, &id))) {
+		fd = bpf_map_get_fd_by_id(id);
+		if (fd < 1) {
+			err("can't get map by id (%u): %s\n",
+			    id, strerror(errno));
+			return -1;
+		}
+
+		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		close(fd);
+		if (err) {
+			err("can't get map info: %s\n", strerror(errno));
+			return -1;
+		}
+
+		show_map(&info);
+	}
 
 	return errno == ENOENT ? 0 : -1;
 }
@@ -328,28 +377,13 @@ static int do_dump(int argc, char **argv)
 	unsigned int num_elems = 0;
 	struct bpf_map_info info;
 	__u32 len = sizeof(info);
-	unsigned int id;
-	char *endptr;
 	int err;
 	int fd;
 
 	if (argc != 2)
 		usage();
 
-	if (!is_prefix(*argv, "id")) {
-		err("expected 'id' got %s\n", *argv);
-		return -1;
-	}
-	NEXT_ARG();
-
-	id = strtoul(*argv, &endptr, 0);
-	if (*endptr) {
-		err("can't parse %s as ID\n", *argv);
-		return -1;
-	}
-	NEXT_ARG();
-
-	fd = map_get_fd_and_info(id, &info, &len);
+	fd = map_parse_fd_and_info(&argc, &argv, &info, &len);
 	if (fd < 0)
 		return -1;
 
@@ -400,8 +434,6 @@ static int do_update(int argc, char **argv)
 	struct bpf_map_info info;
 	__u32 len = sizeof(info);
 	void *key, *value;
-	unsigned int id;
-	char *endptr;
 	__u32 flags;
 	int err;
 	int fd;
@@ -409,20 +441,7 @@ static int do_update(int argc, char **argv)
 	if (argc < 2)
 		usage();
 
-	if (!is_prefix(*argv, "id")) {
-		err("expected 'id' got %s\n", *argv);
-		return -1;
-	}
-	NEXT_ARG();
-
-	id = strtoul(*argv, &endptr, 0);
-	if (*endptr) {
-		err("can't parse %s as ID\n", *argv);
-		return -1;
-	}
-	NEXT_ARG();
-
-	fd = map_get_fd_and_info(id, &info, &len);
+	fd = map_parse_fd_and_info(&argc, &argv, &info, &len);
 	if (fd < 0)
 		return -1;
 
@@ -458,28 +477,13 @@ static int do_lookup(int argc, char **argv)
 	struct bpf_map_info info;
 	__u32 len = sizeof(info);
 	void *key, *value;
-	unsigned int id;
-	char *endptr;
 	int err;
 	int fd;
 
 	if (argc < 2)
 		usage();
 
-	if (!is_prefix(*argv, "id")) {
-		err("expected 'id' got %s\n", *argv);
-		return -1;
-	}
-	NEXT_ARG();
-
-	id = strtoul(*argv, &endptr, 0);
-	if (*endptr) {
-		err("can't parse %s as ID\n", *argv);
-		return -1;
-	}
-	NEXT_ARG();
-
-	fd = map_get_fd_and_info(id, &info, &len);
+	fd = map_parse_fd_and_info(&argc, &argv, &info, &len);
 	if (fd < 0)
 		return -1;
 
@@ -518,8 +522,6 @@ static int do_delete(int argc, char **argv)
 {
 	struct bpf_map_info info;
 	__u32 len = sizeof(info);
-	unsigned int id;
-	char *endptr;
 	void *key;
 	int err;
 	int fd;
@@ -527,20 +529,7 @@ static int do_delete(int argc, char **argv)
 	if (argc < 2)
 		usage();
 
-	if (!is_prefix(*argv, "id")) {
-		err("expected 'id' got %s\n", *argv);
-		return -1;
-	}
-	NEXT_ARG();
-
-	id = strtoul(*argv, &endptr, 0);
-	if (*endptr) {
-		err("can't parse %s as ID\n", *argv);
-		return -1;
-	}
-	NEXT_ARG();
-
-	fd = map_get_fd_and_info(id, &info, &len);
+	fd = map_parse_fd_and_info(&argc, &argv, &info, &len);
 	if (fd < 0)
 		return -1;
 
@@ -575,14 +564,15 @@ static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
 		"Usage: %s %s show\n"
-		"       %s %s show   id MAP_ID\n"
-		"       %s %s dump   id MAP_ID\n"
-		"       %s %s update id MAP_ID key BYTES value BYTES [UPDATE_FLAGS]\n"
-		"       %s %s lookup id MAP_ID key BYTES\n"
-		"       %s %s delete id MAP_ID key BYTES\n"
-		"       %s %s pin    id MAP_ID FILE\n"
+		"       %s %s show   MAP\n"
+		"       %s %s dump   MAP\n"
+		"       %s %s update MAP key BYTES value BYTES [UPDATE_FLAGS]\n"
+		"       %s %s lookup MAP key BYTES\n"
+		"       %s %s delete MAP key BYTES\n"
+		"       %s %s pin    MAP FILE\n"
 		"       %s %s help\n"
 		"\n"
+		"       MAP := { id MAP_ID | pinned FILE }\n"
 		"       UPDATE_FLAGS := { any | exist | noexist }\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],

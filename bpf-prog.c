@@ -134,10 +134,8 @@ static int prog_parse_fd(int *argc, char ***argv)
 
 		return prog_fd_by_tag(tag);
 	} else if (is_prefix(**argv, "pinned")) {
-		struct bpf_prog_info info = { 0 };
-		__u32 len = sizeof(info);
 		char *path;
-		int err;
+		int type;
 
 		NEXT_ARGP();
 
@@ -148,17 +146,10 @@ static int prog_parse_fd(int *argc, char ***argv)
 		if (fd < 1)
 			err("bpf obj get (%s): %s\n", path, strerror(errno));
 
-		/* There seem to be no way today of telling whether pinned
-		 * object is a map or a program.  We work around this by
-		 * checking if size of info has expected size.  Note: this is
-		 * likely to break in the future as info struct is extended!
-		 */
-		err = bpf_obj_get_info_by_fd(fd, &info, &len);
-		if (err) {
-			err("can't get prog info: %s\n", strerror(errno));
-			return -1;
-		}
-		if (len != sizeof(info)) {
+		type = guess_fd_type(fd);
+		if (type < 0)
+			return type;
+		if (type != BPF_OBJ_PROG) {
 			err("incorrect info size: is this object a map?\n");
 			return -1;
 		}

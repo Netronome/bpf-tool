@@ -35,7 +35,10 @@ value:
 
 Found 2 elements
 
-# bpf map del id 10 key 13 00 07 00
+# mount -t bpf none /sys/fs/bpf/
+# bpf map pin id 10 /sys/fs/bpf/map
+
+# bpf map del pinned /sys/fs/bpf/map key 13 00 07 00
 
 # bpf map lookup id 10 key 13 00 07 00
 key:
@@ -169,5 +172,4 @@ index 418c86e69bcb..4742883bbc3f 100644
 
 ## TODO
 
- * BPF file system support;
  * JSON output.

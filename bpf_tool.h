@@ -60,6 +60,12 @@
 #define BPF_TAG_FMT	"%02hhx:%02hhx:%02hhx:%02hhx:"	\
 			"%02hhx:%02hhx:%02hhx:%02hhx"
 
+enum bpf_obj_type {
+	BPF_OBJ_UNKNOWN,
+	BPF_OBJ_PROG,
+	BPF_OBJ_MAP,
+};
+
 extern const char *bin_name;
 
 bool is_prefix(const char *pfx, const char *str);
@@ -74,6 +80,7 @@ struct cmd {
 int cmd_select(const struct cmd *cmds, int argc, char **argv,
 	       int (*help)(int argc, char **argv));
 
+int guess_fd_type(int fd);
 int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32));
 
 int do_prog(int argc, char **arg);
