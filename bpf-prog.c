@@ -61,31 +61,128 @@ static const char *prog_type_name[] = {
 	[BPF_PROG_TYPE_LWT_XMIT]	= "lwt_xmit",
 };
 
-static int show_prog_by_id(unsigned int id, unsigned char *tag)
+static int prog_fd_by_tag(unsigned char *tag)
+{
+	struct bpf_prog_info info = { 0 };
+	__u32 len = sizeof(info);
+	unsigned int id = 0;
+	int err;
+	int fd;
+
+	while (true) {
+		err = bpf_prog_get_next_id(id, &id);
+		if (err) {
+			err("%s\n", strerror(errno));
+			return -1;
+		}
+
+		fd = bpf_prog_get_fd_by_id(id);
+		if (fd < 1) {
+			err("can't get prog by id (%u): %s\n",
+			    id, strerror(errno));
+			return -1;
+		}
+
+		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		if (err) {
+			err("can't get prog info (%u): %s\n",
+			    id, strerror(errno));
+			close(fd);
+			return -1;
+		}
+
+		if (!memcmp(tag, info.tag, BPF_TAG_SIZE))
+			return fd;
+
+		close(fd);
+	}
+}
+
+static int prog_parse_fd(int *argc, char ***argv)
+{
+	int fd;
+
+	if (is_prefix(**argv, "id")) {
+		unsigned int id;
+		char *endptr;
+
+		NEXT_ARGP();
+
+		id = strtoul(**argv, &endptr, 0);
+		if (*endptr) {
+			err("can't parse %s as ID\n", **argv);
+			return -1;
+		}
+		NEXT_ARGP();
+
+		fd = bpf_prog_get_fd_by_id(id);
+		if (fd < 1)
+			err("get by id (%u): %s\n", id, strerror(errno));
+		return fd;
+	} else if (is_prefix(**argv, "tag")) {
+		unsigned char tag[BPF_TAG_SIZE];
+
+		NEXT_ARGP();
+
+		if (sscanf(**argv, BPF_TAG_FMT, tag, tag + 1, tag + 2,
+			   tag + 3, tag + 4, tag + 5, tag + 6, tag + 7)
+		    != BPF_TAG_SIZE) {
+			err("can't parse tag\n");
+			return -1;
+		}
+		NEXT_ARGP();
+
+		return prog_fd_by_tag(tag);
+	} else if (is_prefix(**argv, "pinned")) {
+		struct bpf_prog_info info = { 0 };
+		__u32 len = sizeof(info);
+		char *path;
+		int err;
+
+		NEXT_ARGP();
+
+		path = **argv;
+		NEXT_ARGP();
+
+		fd = bpf_obj_get(path);
+		if (fd < 1)
+			err("bpf obj get (%s): %s\n", path, strerror(errno));
+
+		/* There seem to be no way today of telling whether pinned
+		 * object is a map or a program.  We work around this by
+		 * checking if size of info has expected size.  Note: this is
+		 * likely to break in the future as info struct is extended!
+		 */
+		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		if (err) {
+			err("can't get prog info: %s\n", strerror(errno));
+			return -1;
+		}
+		if (len != sizeof(info)) {
+			err("incorrect info size: is this object a map?\n");
+			return -1;
+		}
+
+		return fd;
+	}
+
+	err("expected 'id', 'tag' or 'pinned', got: '%s'?\n", **argv);
+	return -1;
+}
+
+static int show_prog(int fd)
 {
 	struct bpf_prog_info info = { 0 };
 	__u32 len = sizeof(info);
 	int err;
-	int fd;
-
-	fd = bpf_prog_get_fd_by_id(id);
-	if (fd < 1) {
-		err("can't get prog by id (%u): %s\n", id, strerror(errno));
-		return -1;
-	}
 
 	err = bpf_obj_get_info_by_fd(fd, &info, &len);
-	close(fd);
-
 	if (err) {
 		err("can't get prog info: %s\n", strerror(errno));
 		return -1;
 	}
 
-	if (tag && memcmp(info.tag, tag, BPF_TAG_SIZE))
-		return 0;
-
-	printf("   %u: ", id);
+	printf("   %u: ", info.id);
 	if (info.type < ARRAY_SIZE(prog_type_name))
 		printf("%s  ", prog_type_name[info.type]);
 	else
@@ -103,41 +200,16 @@ static int show_prog_by_id(unsigned int id, unsigned char *tag)
 }
 
 static int do_show(int argc, char **argv)
-{
-	unsigned char tag[BPF_TAG_SIZE];
-	bool have_tag = false;
-	__u32 id = 0;
+{	__u32 id = 0;
 	int err;
+	int fd;
 
 	if (argc == 2) {
-		if (is_prefix(*argv, "id")) {
-			char *endptr;
-
-			NEXT_ARG();
-
-			id = strtoul(*argv, &endptr, 0);
-			if (*endptr) {
-				err("can't parse %s as ID\n", *argv);
-				return -1;
-			}
-
-			return show_prog_by_id(id, NULL);
-		} else if (is_prefix(*argv, "tag")) {
-			NEXT_ARG();
-
-			if (sscanf(*argv, BPF_TAG_FMT, tag, tag + 1, tag + 2,
-				   tag + 3, tag + 4, tag + 5, tag + 6, tag + 7)
-			    != BPF_TAG_SIZE) {
-				err("can't parse tag\n");
-				return -1;
-			}
-			have_tag = true;
-		} else {
-			err("what is '%s'?\n", *argv);
+		fd = prog_parse_fd(&argc, &argv);
+		if (fd < 1)
 			return -1;
-		}
 
-		NEXT_ARG();
+		return show_prog(fd);
 	}
 
 	if (argc)
@@ -152,7 +224,15 @@ static int do_show(int argc, char **argv)
 			return -1;
 		}
 
-		err = show_prog_by_id(id, have_tag ? tag : NULL);
+		fd = bpf_prog_get_fd_by_id(id);
+		if (fd < 1) {
+			err("can't get prog by id (%u): %s\n",
+			    id, strerror(errno));
+			return -1;
+		}
+
+		err = show_prog(fd);
+		close(fd);
 		if (err)
 			return err;
 	}
@@ -163,11 +243,10 @@ static int do_show(int argc, char **argv)
 static int do_dump(int argc, char **argv)
 {
 	struct bpf_prog_info info = { 0 };
-	unsigned int buf_size, id;
 	__u32 len = sizeof(info);
+	unsigned int buf_size;
 	__u32 *member_len;
 	__u64 *member_ptr;
-	char *endptr;
 	char *buf;
 	ssize_t n;
 	int err;
@@ -188,30 +267,15 @@ static int do_dump(int argc, char **argv)
 	if (argc != 4)
 		usage();
 
-	if (!is_prefix(*argv, "id")) {
-		err("expected 'id' got %s\n", *argv);
+	fd = prog_parse_fd(&argc, &argv);
+	if (fd < 0)
 		return -1;
-	}
-	NEXT_ARG();
-
-	id = strtoul(*argv, &endptr, 0);
-	if (*endptr) {
-		err("can't parse %s as ID\n", *argv);
-		return -1;
-	}
-	NEXT_ARG();
 
 	if (!is_prefix(*argv, "file")) {
 		err("expected 'file' got %s\n", *argv);
 		return -1;
 	}
 	NEXT_ARG();
-
-	fd = bpf_prog_get_fd_by_id(id);
-	if (fd < 1) {
-		err("can't get prog by id (%u): %s\n", id, strerror(errno));
-		return -1;
-	}
 
 	err = bpf_obj_get_info_by_fd(fd, &info, &len);
 	if (err) {
@@ -283,16 +347,16 @@ static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
 		"Usage: %s %s show\n"
-		"       %s %s show id PROG_ID\n"
-		"       %s %s show tag PROG_TAG\n"
-		"       %s %s dump xlated id PROG_ID file FILE\n"
-		"       %s %s dump jited  id PROG_ID file FILE\n"
-		"       %s %s pin id PROG_ID FILE\n"
+		"       %s %s show PROGRAM\n"
+		"       %s %s dump xlated PROGRAM file FILE\n"
+		"       %s %s dump jited  PROGRAM file FILE\n"
+		"       %s %s pin PROGRAM FILE\n"
 		"       %s %s help\n"
+		"\n"
+		"       PROGRAM := { id PROG_ID | pinned FILE | tag PROG_TAG }\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
 
 	return 0;
 }

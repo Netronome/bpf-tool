@@ -54,6 +54,7 @@
 	({ typeof(a) _a = (a); typeof(b) _b = (b); _a < _b ? _b : _a; })
 
 #define NEXT_ARG()	({ argc--; argv++; })
+#define NEXT_ARGP()	({ (*argc)--; (*argv)++; })
 #define BAD_ARG()	({ err("what is '%s'?\n", *argv); -1; })
 
 #define BPF_TAG_FMT	"%02hhx:%02hhx:%02hhx:%02hhx:"	\
