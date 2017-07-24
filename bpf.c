@@ -33,7 +33,7 @@
 
 /* Author: Jakub Kicinski <kubakici@wp.pl> */
 
-#include <libbpf/bpf.h>
+#include <bpf/bpf.h>
 #include <linux/bpf.h>
 #include <stdio.h>
 #include <stdlib.h>

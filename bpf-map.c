@@ -41,9 +41,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <bpf/bpf.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <libbpf/bpf.h>
 
 #include "bpf_tool.h"
 

@@ -40,7 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <libbpf/bpf.h>
+#include <bpf/bpf.h>
 #include <linux/limits.h>
 #include <sys/types.h>
 
