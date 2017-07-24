@@ -528,6 +528,64 @@ exit_free:
 	return err;
 }
 
+static int do_getnext(int argc, char **argv)
+{
+	struct bpf_map_info info;
+	__u32 len = sizeof(info);
+	void *key, *nextkey;
+	int err;
+	int fd;
+
+	if (argc < 2)
+		usage();
+
+	fd = map_parse_fd_and_info(&argc, &argv, &info, &len);
+	if (fd < 0)
+		return -1;
+
+	key = malloc(info.key_size);
+	nextkey = malloc(info.key_size);
+	if (!key || !nextkey) {
+		err("mem alloc failed");
+		err = -1;
+		goto exit_free;
+	}
+
+	if (argc) {
+		err = parse_elem(argv, key, NULL, info.key_size, 0, NULL);
+		if (err)
+			goto exit_free;
+	} else {
+		free(key);
+		key = NULL;
+	}
+
+	err = bpf_map_get_next_key(fd, key, nextkey);
+	if (err) {
+		err("can't get next key: %s\n", strerror(errno));
+		goto exit_free;
+	}
+
+	if (key) {
+		printf("key:\n");
+		print_hex(key, info.key_size, " ");
+		printf("\n");
+	} else {
+		printf("key: None\n");
+	}
+
+	printf("next key:\n");
+	print_hex(nextkey, info.key_size, " ");
+	printf("\n");
+
+exit_free:
+	free(nextkey);
+	free(key);
+	close(fd);
+
+	return err;
+}
+
 static int do_delete(int argc, char **argv)
 {
 	struct bpf_map_info info;
@@ -573,13 +631,13 @@ static int do_pin(int argc, char **argv)
 static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
-		"Usage: %s %s show\n"
-		"       %s %s show   MAP\n"
-		"       %s %s dump   MAP\n"
-		"       %s %s update MAP key BYTES value BYTES [UPDATE_FLAGS]\n"
-		"       %s %s lookup MAP key BYTES\n"
-		"       %s %s delete MAP key BYTES\n"
-		"       %s %s pin    MAP FILE\n"
+		"Usage: %s %s show   [MAP]\n"
+		"       %s %s dump    MAP\n"
+		"       %s %s update  MAP  key BYTES value BYTES [UPDATE_FLAGS]\n"
+		"       %s %s lookup  MAP  key BYTES\n"
+		"       %s %s getnext MAP [key BYTES]\n"
+		"       %s %s delete  MAP  key BYTES\n"
+		"       %s %s pin     MAP  FILE\n"
 		"       %s %s help\n"
 		"\n"
 		"       MAP := { id MAP_ID | pinned FILE }\n"
@@ -598,6 +656,7 @@ static const struct cmd cmds[] = {
 	{ "dump",	do_dump },
 	{ "update",	do_update },
 	{ "lookup",	do_lookup },
+	{ "getnext",	do_getnext },
 	{ "delete",	do_delete },
 	{ "pin",	do_pin },
 	{ 0 }

@@ -6,18 +6,20 @@
 # bpf help
 Usage: bpf OBJECT { COMMAND | help }
        OBJECT := { program | map }
+
 # bpf map help
-Usage: bpf map show
-       bpf map show   MAP
-       bpf map dump   MAP
-       bpf map update MAP key BYTES value BYTES [UPDATE_FLAGS]
-       bpf map lookup MAP key BYTES
-       bpf map delete MAP key BYTES
-       bpf map pin    MAP FILE
+Usage: bpf map show   [MAP]
+       bpf map dump    MAP
+       bpf map update  MAP  key BYTES value BYTES [UPDATE_FLAGS]
+       bpf map lookup  MAP  key BYTES
+       bpf map getnext MAP [key BYTES]
+       bpf map delete  MAP  key BYTES
+       bpf map pin     MAP  FILE
        bpf map help
 
        MAP := { id MAP_ID | pinned FILE }
        UPDATE_FLAGS := { any | exist | noexist }
+
 # bpf program help
 Usage: bpf program show
        bpf program show PROGRAM
