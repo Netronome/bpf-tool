@@ -22,10 +22,10 @@ Usage: bpf map show   [MAP]
 
 # bpf program help
 Usage: bpf program show
-       bpf program show PROGRAM
+       bpf program show [PROGRAM]
        bpf program dump xlated PROGRAM file FILE
        bpf program dump jited  PROGRAM file FILE
-       bpf program pin PROGRAM FILE
+       bpf program pin   PROGRAM FILE
        bpf program help
 
        PROGRAM := { id PROG_ID | pinned FILE | tag PROG_TAG }

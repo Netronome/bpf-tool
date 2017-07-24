@@ -340,17 +340,16 @@ static int do_pin(int argc, char **argv)
 static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
-		"Usage: %s %s show\n"
-		"       %s %s show PROGRAM\n"
+		"Usage: %s %s show [PROGRAM]\n"
 		"       %s %s dump xlated PROGRAM file FILE\n"
 		"       %s %s dump jited  PROGRAM file FILE\n"
-		"       %s %s pin PROGRAM FILE\n"
+		"       %s %s pin   PROGRAM FILE\n"
 		"       %s %s help\n"
 		"\n"
 		"       PROGRAM := { id PROG_ID | pinned FILE | tag PROG_TAG }\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2]);
 
 	return 0;
 }
