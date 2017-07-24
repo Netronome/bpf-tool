@@ -3,30 +3,30 @@
 ## Supported operations
 
 ```
-# bpf help
-Usage: bpf OBJECT { COMMAND | help }
+# bpftool help
+Usage: bpftool OBJECT { COMMAND | help }
        OBJECT := { program | map }
 
-# bpf map help
-Usage: bpf map show   [MAP]
-       bpf map dump    MAP
-       bpf map update  MAP  key BYTES value BYTES [UPDATE_FLAGS]
-       bpf map lookup  MAP  key BYTES
-       bpf map getnext MAP [key BYTES]
-       bpf map delete  MAP  key BYTES
-       bpf map pin     MAP  FILE
-       bpf map help
+# bpftool map help
+Usage: bpftool map show   [MAP]
+       bpftool map dump    MAP
+       bpftool map update  MAP  key BYTES value BYTES [UPDATE_FLAGS]
+       bpftool map lookup  MAP  key BYTES
+       bpftool map getnext MAP [key BYTES]
+       bpftool map delete  MAP  key BYTES
+       bpftool map pin     MAP  FILE
+       bpftool map help
 
        MAP := { id MAP_ID | pinned FILE }
        UPDATE_FLAGS := { any | exist | noexist }
 
-# bpf program help
-Usage: bpf program show
-       bpf program show [PROGRAM]
-       bpf program dump xlated PROGRAM file FILE
-       bpf program dump jited  PROGRAM file FILE
-       bpf program pin   PROGRAM FILE
-       bpf program help
+# bpftool program help
+Usage: bpftool program show
+       bpftool program show [PROGRAM]
+       bpftool program dump xlated PROGRAM file FILE
+       bpftool program dump jited  PROGRAM file FILE
+       bpftool program pin   PROGRAM FILE
+       bpftool program help
 
        PROGRAM := { id PROG_ID | pinned FILE | tag PROG_TAG }
 ```
@@ -37,23 +37,23 @@ The tool allows listing programs and maps on the system as well as simple
 dumping and modification of the maps.
 
 ```
-# bpf map show
+# bpftool map show
    10: hash  key:4B  value:8B  max_entries:2048  flags:0x0
 
-# bpf prog show
+# bpftool prog show
    10: xdp  tag: 00:5a:3d:21:23:62:0c:8b  jited: 0B  xlated: 560B
 
-# bpf prog dump xlated id 10 file /tmp/t
+# bpftool prog dump xlated id 10 file /tmp/t
 # ls -l /tmp/t
 -rw------- 1 root root 560 Jul 22 01:42 /tmp/t
 
-# bpf map lookup id 10 key 0 1 2 3
+# bpftool map lookup id 10 key 0 1 2 3
 key:
 00 01 02 03
 value:
 00 01 02 03 04 05 06 07
 
-# bpf map dump id 10
+# bpftool map dump id 10
 key:
 00 01 02 03
 value:
@@ -67,11 +67,11 @@ value:
 Found 2 elements
 
 # mount -t bpf none /sys/fs/bpf/
-# bpf map pin id 10 /sys/fs/bpf/map
+# bpftool map pin id 10 /sys/fs/bpf/map
 
-# bpf map del pinned /sys/fs/bpf/map key 13 00 07 00
+# bpftool map del pinned /sys/fs/bpf/map key 13 00 07 00
 
-# bpf map lookup id 10 key 13 00 07 00
+# bpftool map lookup id 10 key 13 00 07 00
 key:
 0d 00 07 00
 
@@ -80,7 +80,7 @@ Not found
 
 Example with kernel's samples/bpf/xdp1 running:
 ```
-# bpf map lookup id 11 key 6 0 0 0
+# bpftool map lookup id 11 key 6 0 0 0
 key:
 06 00 00 00
 value (CPU 00): 00 00 00 00 00 00 00 00

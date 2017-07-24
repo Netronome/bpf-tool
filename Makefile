@@ -38,9 +38,9 @@ LIBS = -lelf -lbpf -lelf
 
 include $(wildcard *.d)
 
-all: bpf
+all: bpftool
 
-bpf: bpf.o bpf-map.o bpf-prog.o bpf-common.o
+bpftool: bpf.o bpf-map.o bpf-prog.o bpf-common.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 clean:
