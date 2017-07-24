@@ -360,7 +360,17 @@ static int do_show(int argc, char **argv)
 	if (argc)
 		return BAD_ARG();
 
-	while (!(err = bpf_map_get_next_id(id, &id))) {
+	while (true) {
+		err = bpf_map_get_next_id(id, &id);
+		if (err) {
+			if (errno == ENOENT)
+				break;
+			err("can't get next map: %s\n", strerror(errno));
+			if (errno == EINVAL)
+				err("kernel too old?\n");
+			return -1;
+		}
+
 		fd = bpf_map_get_fd_by_id(id);
 		if (fd < 1) {
 			err("can't get map by id (%u): %s\n",

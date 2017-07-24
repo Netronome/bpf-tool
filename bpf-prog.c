@@ -214,7 +214,9 @@ static int do_show(int argc, char **argv)
 		if (err) {
 			if (errno == ENOENT)
 				break;
-			err("can't get next prog: %s\n", strerror(errno));
+			err("can't get next program: %s\n", strerror(errno));
+			if (errno == EINVAL)
+				err("kernel too old?\n");
 			return -1;
 		}
 
