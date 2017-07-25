@@ -33,6 +33,7 @@
 
 /* Author: Jakub Kicinski <kubakici@wp.pl> */
 
+#include <bfd.h>
 #include <bpf/bpf.h>
 #include <linux/bpf.h>
 #include <stdio.h>
@@ -86,6 +87,8 @@ int cmd_select(const struct cmd *cmds, int argc, char **argv,
 
 bool is_prefix(const char *pfx, const char *str)
 {
+	if (!pfx)
+		return false;
 	if (strlen(str) < strlen(pfx))
 		return false;
 
@@ -124,6 +127,8 @@ int main(int argc, char **argv)
 {
 	bin_name = argv[0];
 	NEXT_ARG();
+
+	bfd_init();
 
 	return cmd_select(cmds, argc, argv, do_help);
 }

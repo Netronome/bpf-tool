@@ -240,10 +240,13 @@ static int do_dump(int argc, char **argv)
 {
 	struct bpf_prog_info info = { 0 };
 	__u32 len = sizeof(info);
+	bool can_disasm = false;
 	unsigned int buf_size;
+	char *filepath = NULL;
+	bool opcodes = false;
+	unsigned char *buf;
 	__u32 *member_len;
 	__u64 *member_ptr;
-	char *buf;
 	ssize_t n;
 	int err;
 	int fd;
@@ -251,6 +254,7 @@ static int do_dump(int argc, char **argv)
 	if (is_prefix(*argv, "jited")) {
 		member_len = &info.jited_prog_len;
 		member_ptr = &info.jited_prog_insns;
+		can_disasm = true;
 	} else if (is_prefix(*argv, "xlated")) {
 		member_len = &info.xlated_prog_len;
 		member_ptr = &info.xlated_prog_insns;
@@ -260,18 +264,35 @@ static int do_dump(int argc, char **argv)
 	}
 	NEXT_ARG();
 
-	if (argc != 4)
+	if (argc < 2)
 		usage();
 
 	fd = prog_parse_fd(&argc, &argv);
 	if (fd < 0)
 		return -1;
 
-	if (!is_prefix(*argv, "file")) {
+	if (is_prefix(*argv, "file")) {
+		NEXT_ARG();
+		if (!argc) {
+			err("expected file path\n");
+			return -1;
+		}
+
+		filepath = *argv;
+		NEXT_ARG();
+	} else if (is_prefix(*argv, "opcodes")) {
+		opcodes = true;
+		NEXT_ARG();
+	}
+
+	if (!filepath && !can_disasm) {
 		err("expected 'file' got %s\n", *argv);
 		return -1;
 	}
-	NEXT_ARG();
+	if (argc) {
+		usage();
+		return -1;
+	}
 
 	err = bpf_obj_get_info_by_fd(fd, &info, &len);
 	if (err) {
@@ -311,18 +332,23 @@ static int do_dump(int argc, char **argv)
 		goto err_free;
 	}
 
-	fd = open(*argv, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-	if (fd < 1) {
-		err("can't open file %s: %s\n", *argv, strerror(errno));
-		goto err_free;
-	}
+	if (filepath) {
+		fd = open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+		if (fd < 1) {
+			err("can't open file %s: %s\n", filepath,
+			    strerror(errno));
+			goto err_free;
+		}
 
-	n = write(fd, buf, *member_len);
-	close(fd);
-	if (n != *member_len) {
-		err("error writing output file: %s\n",
-		    n < 0 ? strerror(errno) : "short write");
-		goto err_free;
+		n = write(fd, buf, *member_len);
+		close(fd);
+		if (n != *member_len) {
+			err("error writing output file: %s\n",
+			    n < 0 ? strerror(errno) : "short write");
+			goto err_free;
+		}
+	} else {
+		disasm_print_insn(buf, *member_len, opcodes);
 	}
 
 	free(buf);
@@ -343,8 +369,8 @@ static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
 		"Usage: %s %s show [PROGRAM]\n"
-		"       %s %s dump xlated PROGRAM file FILE\n"
-		"       %s %s dump jited  PROGRAM file FILE\n"
+		"       %s %s dump xlated PROGRAM  file FILE\n"
+		"       %s %s dump jited  PROGRAM [file FILE] [opcodes]\n"
 		"       %s %s pin   PROGRAM FILE\n"
 		"       %s %s help\n"
 		"\n"

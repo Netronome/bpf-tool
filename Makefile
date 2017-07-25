@@ -34,13 +34,13 @@
 
 CC := gcc
 CFLAGS = -std=gnu99 -O2 -W -Wall -Wextra -Wno-unused-parameter -Wshadow
-LIBS = -lelf -lbpf -lelf
+LIBS = -lelf -lbpf -lelf -lbfd -lopcodes
 
 include $(wildcard *.d)
 
 all: bpftool
 
-bpftool: bpf.o bpf-map.o bpf-prog.o bpf-common.o
+bpftool: bpf.o bpf-map.o bpf-prog.o bpf-common.o bpf-jit-disasm.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 clean:

@@ -92,4 +92,6 @@ int do_map(int argc, char **arg);
 
 int prog_parse_fd(int *argc, char ***argv);
 
+void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes);
+
 #endif

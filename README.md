@@ -24,8 +24,8 @@ Usage: bpftool map show   [MAP]
 
 # bpftool program help
 Usage: bpftool program show [PROGRAM]
-       bpftool program dump xlated PROGRAM file FILE
-       bpftool program dump jited  PROGRAM file FILE
+       bpftool bpftool dump xlated PROGRAM  file FILE
+       bpftool bpftool dump jited  PROGRAM [file FILE] [opcodes]
        bpftool program pin   PROGRAM FILE
        bpftool program help
 
@@ -47,6 +47,14 @@ dumping and modification of the maps.
 # bpftool prog dump xlated id 10 file /tmp/t
 # ls -l /tmp/t
 -rw------- 1 root root 560 Jul 22 01:42 /tmp/t
+
+# bpftool prog dump jited id 10
+   0:	push   %rbp
+   1:	mov    %rsp,%rbp
+   4:	sub    $0x228,%rsp
+   b:	sub    $0x28,%rbp
+   f:	mov    %rbx,0x0(%rbp)
+...
 
 # bpftool map lookup id 10 key 0 1 2 3
 key:
@@ -204,6 +212,7 @@ index 418c86e69bcb..4742883bbc3f 100644
 
 ## TODO
 
+ * disassemble translated code;
  * upstream the libbpf patches;
  * loading support;
  * JSON output.
