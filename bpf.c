@@ -42,25 +42,23 @@
 #include "bpf_tool.h"
 
 const char *bin_name;
-
-static void __usage(void)
-{
-	fprintf(stderr,
-		"Usage: %s OBJECT { COMMAND | help }\n"
-		"       OBJECT := { program | map }\n",
-		bin_name);
-}
+static int last_argc;
+static char **last_argv;
+static int (*last_do_help)(int argc, char **argv);
 
 void usage(void)
 {
-	__usage();
+	last_do_help(last_argc, last_argv);
 
 	exit(-1);
 }
 
 static int do_help(int argc, char **argv)
 {
-	__usage();
+	fprintf(stderr,
+		"Usage: %s OBJECT { COMMAND | help }\n"
+		"       OBJECT := { program | map }\n",
+		bin_name);
 
 	return 0;
 }
@@ -69,6 +67,10 @@ int cmd_select(const struct cmd *cmds, int argc, char **argv,
 	       int (*help)(int argc, char **argv))
 {
 	unsigned int i;
+
+	last_argc = argc;
+	last_argv = argv;
+	last_do_help = help;
 
 	if (argc < 1 && cmds[0].func)
 		return cmds[0].func(argc, argv);
