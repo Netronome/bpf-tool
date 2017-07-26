@@ -63,7 +63,7 @@ static const char *prog_type_name[] = {
 
 static int prog_fd_by_tag(unsigned char *tag)
 {
-	struct bpf_prog_info info = { 0 };
+	struct bpf_prog_info info = {};
 	__u32 len = sizeof(info);
 	unsigned int id = 0;
 	int err;
@@ -166,7 +166,7 @@ int prog_parse_fd(int *argc, char ***argv)
 
 static int show_prog(int fd)
 {
-	struct bpf_prog_info info = { 0 };
+	struct bpf_prog_info info = {};
 	__u32 len = sizeof(info);
 	int err;
 
@@ -238,7 +238,7 @@ static int do_show(int argc, char **argv)
 
 static int do_dump(int argc, char **argv)
 {
-	struct bpf_prog_info info = { 0 };
+	struct bpf_prog_info info = {};
 	__u32 len = sizeof(info);
 	bool can_disasm = false;
 	unsigned int buf_size;
@@ -320,7 +320,7 @@ static int do_dump(int argc, char **argv)
 	*member_ptr = ptr_to_u64(buf);
 	*member_len = buf_size;
 
-	err = __bpf_obj_get_info_by_fd(fd, &info, &len);
+	err = bpf_obj_get_info_by_fd(fd, &info, &len);
 	close(fd);
 	if (err) {
 		err("can't get prog info: %s\n", strerror(errno));

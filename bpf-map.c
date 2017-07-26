@@ -387,7 +387,7 @@ static int show_map(struct bpf_map_info *info)
 
 static int do_show(int argc, char **argv)
 {
-	struct bpf_map_info info;
+	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);
 	__u32 id = 0;
 	int err;
@@ -439,7 +439,7 @@ static int do_dump(int argc, char **argv)
 {
 	void *key, *value, *prev_key;
 	unsigned int num_elems = 0;
-	struct bpf_map_info info;
+	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);
 	int err;
 	int fd;
@@ -501,7 +501,7 @@ exit_free:
 
 static int do_update(int argc, char **argv)
 {
-	struct bpf_map_info info;
+	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);
 	void *key, *value;
 	__u32 flags;
@@ -544,7 +544,7 @@ exit_free:
 
 static int do_lookup(int argc, char **argv)
 {
-	struct bpf_map_info info;
+	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);
 	void *key, *value;
 	int err;
@@ -590,7 +590,7 @@ exit_free:
 
 static int do_getnext(int argc, char **argv)
 {
-	struct bpf_map_info info;
+	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);
 	void *key, *nextkey;
 	int err;
@@ -649,7 +649,7 @@ exit_free:
 
 static int do_delete(int argc, char **argv)
 {
-	struct bpf_map_info info;
+	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);
 	void *key;
 	int err;
