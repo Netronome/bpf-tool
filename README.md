@@ -120,55 +120,28 @@ value (CPU 19): 26 0b 06 00 00 00 00 00
 
 ## Building
 
-The tool depends on kernel's libbpf being installed in standard location.
-Moreover, you need to install the bpf.h header.  Here is a kernel patch
-modifying libbpf's makefile:
+### libbpf
 
-```diff
-diff --git a/tools/lib/bpf/Makefile b/tools/lib/bpf/Makefile
-index 1f5300e56b44..9e658ffe31de 100644
---- a/tools/lib/bpf/Makefile
-+++ b/tools/lib/bpf/Makefile
-@@ -46,6 +46,7 @@ else
- endif
- 
- prefix ?= /usr/local
-+headerdir = $(prefix)/include/libbpf/
- libdir = $(prefix)/$(libdir_relative)
- man_dir = $(prefix)/share/man
- man_dir_SQ = '$(subst ','\'',$(man_dir))'
-@@ -90,11 +91,13 @@ endif
- export prefix libdir src obj
- 
- # Shell quotes
-+headerdir_SQ = $(subst ','\'',$(headerdir))
- libdir_SQ = $(subst ','\'',$(libdir))
- libdir_relative_SQ = $(subst ','\'',$(libdir_relative))
- plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
- 
- LIB_FILE = libbpf.a libbpf.so
-+HEADER_FILE = bpf.h
- 
- VERSION                = $(BPF_VERSION)
- PATCHLEVEL     = $(BPF_PATCHLEVEL)
-@@ -189,7 +192,11 @@ install_lib: all_cmd
-        $(call QUIET_INSTALL, $(LIB_FILE)) \
-                $(call do_install,$(LIB_FILE),$(libdir_SQ))
- 
--install: install_lib
-+install_hdr: all_cmd
-+       $(call QUIET_INSTALL, $(HEADER_FILE)) \
-+               $(call do_install,$(HEADER_FILE),$(headerdir_SQ))
-+
-+install: install_lib install_hdr
- 
- ### Cleaning rules
- 
+The tool depends on kernel's `libbpf` being installed in standard location.
+`libbpf` is part of the linux kernel tree, you may need to build it manually
+if it's not available in your distro.  We need the `libbpf` from kernel **4.14**
+(use the linux-next tree until 4.14-rc1 is tagged).
+
+To build `libbpf`, get kernel sources and perform these steps:
 ```
+$ cd $path_to_your_sources
+$ cd tools/lib/bpf/
+$ make
+# make install
+```
+
+### bpftool
+
+After `libbpf` is built and installed, make sure you have `libbfd` library
+installed and simply run `make` in this directory.
 
 ## TODO
 
  * disassemble translated code;
- * upstream the libbpf patches;
  * loading support;
  * JSON output.
