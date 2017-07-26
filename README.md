@@ -24,8 +24,8 @@ Usage: bpftool map show   [MAP]
 
 # bpftool program help
 Usage: bpftool program show [PROGRAM]
-       bpftool bpftool dump xlated PROGRAM  file FILE
-       bpftool bpftool dump jited  PROGRAM [file FILE] [opcodes]
+       bpftool program dump xlated PROGRAM  file FILE
+       bpftool program dump jited  PROGRAM [file FILE] [opcodes]
        bpftool program pin   PROGRAM FILE
        bpftool program help
 
