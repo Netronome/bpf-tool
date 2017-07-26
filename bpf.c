@@ -35,6 +35,8 @@
 
 #include <bfd.h>
 #include <bpf/bpf.h>
+#include <ctype.h>
+#include <errno.h>
 #include <linux/bpf.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,8 +60,10 @@ static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
 		"Usage: %s OBJECT { COMMAND | help }\n"
+		"       %s batch file FILE\n"
+		"\n"
 		"       OBJECT := { program | map }\n",
-		bin_name);
+		bin_name, bin_name);
 
 	return 0;
 }
@@ -116,12 +120,85 @@ void print_hex(void *arg, unsigned int n, const char *sep)
 	}
 }
 
+static int do_batch(int argc, char **argv);
+
 static const struct cmd cmds[] = {
 	{ "help",	do_help },
+	{ "batch",	do_batch },
 	{ "program",	do_prog },
 	{ "map",	do_map },
 	{ 0 }
 };
+
+static int do_batch(int argc, char **argv)
+{
+	unsigned int lines = 0;
+	char *n_argv[4096];
+	char buf[65536];
+	int n_argc;
+	char *ptr;
+	FILE *fp;
+	int err;
+
+	if (argc < 2) {
+		err("too few parameters for batch\n");
+		return -1;
+	} else if (!is_prefix(*argv, "file")) {
+		err("expected 'file', got: %s\n", *argv);
+		return -1;
+	} else if (argc > 2) {
+		err("too many parameters for batch\n");
+		return -1;
+	}
+	NEXT_ARG();
+
+	fp = fopen(*argv, "r");
+	if (!fp) {
+		err("Can't open file (%s): %s\n", *argv, strerror(errno));
+		return -1;
+	}
+
+	while (fgets(buf, sizeof(buf), fp)) {
+		if (strlen(buf) == sizeof(buf) - 1) {
+			errno = E2BIG;
+			break;
+		}
+
+		ptr = buf;
+		n_argc = 0;
+		while (*ptr) {
+			if (isspace(*ptr)) {
+				ptr++;
+				continue;
+			}
+			n_argv[n_argc++] = ptr;
+
+			ptr += strcspn(ptr, " \t\n");
+			*ptr++ = 0;
+		}
+
+		if (!n_argc)
+			continue;
+
+		err = cmd_select(cmds, n_argc, n_argv, do_help);
+		if (err)
+			goto err_close;
+
+		lines++;
+	}
+
+	if (errno && errno != ENOENT) {
+		perror("reading batch file failed");
+		err = -1;
+	} else {
+		info("processed %d lines\n", lines);
+		err = 0;
+	}
+err_close:
+	fclose(fp);
+
+	return err;
+}
 
 int main(int argc, char **argv)
 {

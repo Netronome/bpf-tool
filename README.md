@@ -5,6 +5,8 @@
 ```
 # bpftool help
 Usage: bpftool OBJECT { COMMAND | help }
+       bpftool batch file FILE
+
        OBJECT := { program | map }
 
 # bpftool map help
