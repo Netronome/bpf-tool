@@ -228,6 +228,7 @@ static void print_entry(struct bpf_map_info *info, unsigned char *key,
 			print_hex(key, info->key_size, " ");
 			printf("  value: ");
 			print_hex(value, info->value_size, " ");
+			printf("\n");
 			return;
 		}
 
@@ -482,8 +483,6 @@ static int do_dump(int argc, char **argv)
 		}
 
 		print_entry(&info, key, value);
-		printf("\n");
-
 next_key:
 		prev_key = key;
 		num_elems++;
