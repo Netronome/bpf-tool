@@ -133,6 +133,7 @@ $ cd $path_to_your_sources
 $ cd tools/lib/bpf/
 $ make
 # make install
+# make install_headers
 ```
 
 ### bpftool
