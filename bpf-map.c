@@ -502,8 +502,8 @@ static int do_update(int argc, char **argv)
 {
 	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);
+	__u32 flags = BPF_ANY;
 	void *key, *value;
-	__u32 flags;
 	int err;
 	int fd;
 
