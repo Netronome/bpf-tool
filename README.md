@@ -136,6 +136,22 @@ $ make
 # make install_headers
 ```
 
+The default install path is /usr/local/.  Thus, make sure that the
+dynamic linker is looking after shared libraries in /usr/local/lib64.
+This is not default enabled in Fedora.  To enable this follow these
+steps:
+```
+$ sudo sh -c 'echo /usr/local/lib   >  /etc/ld.so.conf.d/usr_local.conf'
+$ sudo sh -c 'echo /usr/local/lib64 >> /etc/ld.so.conf.d/usr_local.conf'
+$ sudo ldconfig
+```
+
+Else you will see errors like:
+```
+./bpftool: error while loading shared libraries: libbpf.so:
+  cannot open shared object file: No such file or directory
+```
+
 ### bpftool
 
 After `libbpf` is built and installed, make sure you have `libbfd` library
