@@ -139,7 +139,8 @@ $ make
 ### bpftool
 
 After `libbpf` is built and installed, make sure you have `libbfd` library
-installed and simply run `make` in this directory.
+installed and simply run `make` in this directory.  The `libbfd` library is
+usually part of the software package binutils-devel/binutils-dev.
 
 ## TODO
 
