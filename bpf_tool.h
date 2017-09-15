@@ -94,4 +94,36 @@ int prog_parse_fd(int *argc, char ***argv);
 
 void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes);
 
+/*
+ * Struct bpf_prog_info and bpf_map_info was first introduced in
+ * kernel v4.13.  Thus, is depend on a very recent uapi/linux/bpf.h
+ * include file.
+ *
+ * Usually it is not possible to catch this compile time, but we got
+ * lucky, as BPF_TAG_SIZE was moved to be UAPI visible in the same
+ * commit 1e2709769086 ("bpf: Add BPF_OBJ_GET_INFO_BY_FD").
+ */
+#ifndef BPF_TAG_SIZE
+#define BPF_TAG_SIZE       8
+
+struct bpf_prog_info {
+	__u32 type;
+	__u32 id;
+	__u8  tag[BPF_TAG_SIZE];
+	__u32 jited_prog_len;
+	__u32 xlated_prog_len;
+	__aligned_u64 jited_prog_insns;
+	__aligned_u64 xlated_prog_insns;
+} __attribute__((aligned(8)));
+
+struct bpf_map_info {
+	__u32 type;
+	__u32 id;
+	__u32 key_size;
+	__u32 value_size;
+	__u32 max_entries;
+	__u32 map_flags;
+} __attribute__((aligned(8)));
+#endif /* BPF_TAG_SIZE */
+
 #endif
