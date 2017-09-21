@@ -51,7 +51,7 @@ static int (*last_do_help)(int argc, char **argv);
 
 void usage(void)
 {
-	last_do_help(last_argc, last_argv);
+	last_do_help(last_argc - 1, last_argv + 1);
 
 	exit(-1);
 }
